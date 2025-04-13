@@ -10,7 +10,7 @@ import { TypingProvider } from "./contexts/TypingContext";
 import { CallProvider } from "./contexts/CallContext";
 
 // Redux store / Pages / Actions / Selectors
-import { store } from "./app/store";
+import { store } from "./App/store";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
