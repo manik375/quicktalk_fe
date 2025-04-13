@@ -1,0 +1,344 @@
+/* Import a modern, clean font */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap");
+
+/* Tailwind directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- ENTERPRISE THEME - LIGHT MODE --- */
+:root {
+  /* Base Colors - Refined Professional Palette */
+  --bg-base: #f0f2f5; /* Slightly cooler, softer light grey */
+  --primary-accent: #3a86ff; /* Professional, modern blue */
+  --primary-accent-dark: #2a70e0; /* Darker blue for hover/active */
+  --text-primary: #1f2937; /* Dark grey (not pure black) */
+  --text-secondary: #6b7280; /* Medium grey for secondary info */
+
+  /* Success/Danger Colors */
+  --success-light: #10b981; /* Green */
+  --success-dark: #059669;
+  --danger-light: #ef4444; /* Red */
+  --danger-dark: #dc2626;
+
+  /* Neumorphic Shadows - Adjusted for more right-bottom depth */
+  /* --- Shifted shadow positions for better depth effect --- */
+  --shadow-outset: 10px 10px 15px rgba(163, 177, 198, 0.45),
+    /* More right-bottom emphasis */ -4px -4px 10px #ffffff; /* Lighter top-left highlight */
+  --shadow-inset: inset 6px 6px 10px rgba(163, 177, 198, 0.55),
+    /* Stronger bottom-right inset */ inset -3px -3px 6px #ffffff;
+     
+  /* Enhanced deeper shadows with increased right-bottom depth */
+  --shadow-deep: 14px 14px 20px rgba(163, 177, 198, 0.55),
+    -5px -5px 14px #ffffff;
+  --shadow-inset-deep: inset 8px 8px 12px rgba(163, 177, 198, 0.6),
+    inset -4px -4px 8px #ffffff;
+     
+  /* Mini element shadows with adjusted offsets */
+  --shadow-mini-raised: 4px 4px 8px rgba(163, 177, 198, 0.45),
+    -2px -2px 5px #ffffff;
+  --shadow-mini-inset: inset 3px 3px 5px rgba(163, 177, 198, 0.55),
+    inset -2px -2px 3px #ffffff;
+
+  /* Global Settings */
+  font-family: "Poppins", sans-serif;
+  color-scheme: light;
+  color: var(--text-primary);
+  background: var(--bg-base);
+  /* Subtle gradient using base colors */
+  background-image: linear-gradient(145deg, #f0f2f5, #e5e9f0);
+}
+
+/* --- ENTERPRISE THEME - DARK MODE --- */
+html.dark {
+  /* Base Colors - Deep, Focused Palette */
+  --bg-base: #1e222b; /* Deep, cool dark grey */
+  --primary-accent: #58a6ff; /* Slightly brighter blue for contrast */
+  --primary-accent-dark: #3a86ff; /* Base blue from light mode for hover/active */
+  --text-primary: #e5e7eb; /* Light grey (off-white) */
+  --text-secondary: #9ca3af; /* Muted grey for secondary info */
+   
+  /* Success/Danger Colors */
+  --success-light: #10b981; /* Green */
+  --success-dark: #059669;
+  --danger-light: #ef4444; /* Red */
+  --danger-dark: #dc2626;
+
+  /* Neumorphic Shadows - Adjusted for more right-bottom depth in dark mode */
+  /* --- Shifted shadow positions for better depth effect --- */
+  --shadow-outset: 10px 10px 15px rgba(0, 0, 0, 0.5),
+    /* More right-bottom emphasis */ -4px -4px 10px #2a2f3a; /* Lighter top-left highlight */
+  --shadow-inset: inset 6px 6px 10px rgba(0, 0, 0, 0.55),
+    inset -3px -3px 6px #2a2f3a;
+     
+  /* Enhanced deeper shadows with increased right-bottom depth */
+  --shadow-deep: 14px 14px 20px rgba(0, 0, 0, 0.55),
+    -5px -5px 14px #2a2f3a;
+  --shadow-inset-deep: inset 8px 8px 12px rgba(0, 0, 0, 0.6),
+    inset -4px -4px 8px #2a2f3a;
+     
+  /* Mini element shadows with adjusted offsets */
+  --shadow-mini-raised: 4px 4px 8px rgba(0, 0, 0, 0.5),
+    -2px -2px 5px #2a2f3a;
+  --shadow-mini-inset: inset 3px 3px 5px rgba(0, 0, 0, 0.55),
+    inset -2px -2px 3px #2a2f3a;
+
+  color-scheme: dark;
+  color: var(--text-primary);
+  background: var(--bg-base);
+  /* Subtle gradient using base colors */
+  background-image: linear-gradient(145deg, #1e222b, #161920);
+}
+
+/* Base Body & Container Styles (No changes needed here) */
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  transition: background 0.3s ease, color 0.3s ease;
+  background: var(--bg-base);
+  background-image: inherit; /* Inherit gradient from root */
+}
+
+#root {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* Neumorphic Component Layer (References updated variables automatically) */
+@layer components {
+  /* Standard Container */
+  .neumorphic-base {
+    background: var(--bg-base);
+    border-radius: 16px;
+    transition: box-shadow 0.3s ease, background 0.3s ease, transform 0.3s ease;
+  }
+  .neumorphic-noborders {
+    background: var(--bg-base);
+    transition: box-shadow 0.3s ease, background 0.3s ease, transform 0.3s ease;
+  }
+
+  /* Deep raised effect - stronger shadow */
+  .neumorphic-deep {
+    @apply neumorphic-base;
+    box-shadow: var(--shadow-deep);
+  }
+  
+  /* Deep inset effect */
+  .neumorphic-inset {
+    @apply neumorphic-base;
+    box-shadow: var(--shadow-inset-deep);
+  }
+
+  /* Raised (Outset) Style */
+  .neumorphic-raised {
+    @apply neumorphic-base;
+    box-shadow: var(--shadow-outset);
+  }
+  .neumorphic-alternate-raise {
+    @apply neumorphic-base;
+  }
+  .neumorphic-borderless {
+    @apply neumorphic-noborders;
+    box-shadow: var(--shadow-outset);
+  }
+
+  /* Pressed (Inset) Style */
+  .neumorphic-pressed {
+    @apply neumorphic-base;
+    box-shadow: var(--shadow-inset);
+  }
+  
+  /* Mini neumorphic styles for smaller elements */
+  .neumorphic-mini-raised {
+    background: var(--bg-base);
+    border-radius: 8px;
+    box-shadow: var(--shadow-mini-raised);
+    transition: box-shadow 0.3s ease, background 0.3s ease, transform 0.3s ease;
+  }
+  
+  .neumorphic-mini-pressed {
+    background: var(--bg-base);
+    border-radius: 8px;
+    box-shadow: var(--shadow-mini-inset);
+    transition: box-shadow 0.3s ease, background 0.3s ease, transform 0.3s ease;
+  }
+  
+  /* Circular neumorphic elements */
+  .neumorphic-circle {
+    background: var(--bg-base);
+    border-radius: 50%;
+    box-shadow: var(--shadow-outset);
+  }
+  
+  .neumorphic-circle-concentric {
+    background: var(--bg-base);
+    border-radius: 50%;
+    box-shadow: var(--shadow-outset),
+                inset 4px 4px 6px rgba(255, 255, 255, 0.1),
+                inset -4px -4px 6px rgba(0, 0, 0, 0.05);
+  }
+  
+  .neumorphic-circle-danger {
+    background: color-mix(in srgb, var(--bg-base) 95%, var(--danger-light) 5%);
+    border-radius: 50%;
+    box-shadow: var(--shadow-outset);
+  }
+  
+  /* Button Variants */
+  .neumorphic-button {
+    background: var(--bg-base);
+    border-radius: 50%;
+    box-shadow: var(--shadow-outset);
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+  }
+  
+  .neumorphic-button:active {
+    box-shadow: var(--shadow-inset);
+    transform: scale(0.95);
+  }
+  
+  .neumorphic-button-active {
+    background: var(--primary-accent);
+    border-radius: 50%;
+    box-shadow: var(--shadow-outset);
+    color: white;
+    transition: all 0.3s ease;
+  }
+  
+  .neumorphic-button-active:active {
+    box-shadow: var(--shadow-inset);
+    transform: scale(0.95);
+  }
+  
+  .neumorphic-button-success {
+    background: var(--success-light);
+    border-radius: 50%;
+    box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.2),
+                -5px -5px 10px rgba(255, 255, 255, 0.1);
+    color: white;
+    transition: all 0.3s ease;
+  }
+  
+  .neumorphic-button-success:active {
+    background: var(--success-dark);
+    box-shadow: inset 3px 3px 5px rgba(0, 0, 0, 0.2),
+                inset -3px -3px 5px rgba(255, 255, 255, 0.05);
+    transform: scale(0.95);
+  }
+  
+  .neumorphic-button-danger {
+    background: var(--danger-light);
+    border-radius: 50%;
+    box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.2),
+                -5px -5px 10px rgba(255, 255, 255, 0.1);
+    color: white;
+    transition: all 0.3s ease;
+  }
+  
+  .neumorphic-button-danger:active {
+    background: var(--danger-dark);
+    box-shadow: inset 3px 3px 5px rgba(0, 0, 0, 0.2),
+                inset -3px -3px 5px rgba(255, 255, 255, 0.05);
+    transform: scale(0.95);
+  }
+  
+  /* Pressed danger style for error messages */
+  .neumorphic-pressed-danger {
+    background: color-mix(in srgb, var(--bg-base) 95%, var(--danger-light) 5%);
+    border-radius: 12px;
+    box-shadow: var(--shadow-inset);
+  }
+
+  /* Interactive Elements */
+  .neumorphic-interactive {
+    @apply neumorphic-raised cursor-pointer;
+    transition: transform 0.1s ease, box-shadow 0.2s ease,
+      background-color 0.2s ease;
+  }
+
+  /* Active state slightly more pronounced */
+  .neumorphic-interactive:active,
+  .neumorphic-interactive.active {
+    @apply neumorphic-pressed;
+    transform: scale(0.97); /* Slightly more press */
+    box-shadow: var(--shadow-inset); /* Ensure inset shadow on active */
+  }
+
+  /* Subtle hover brightness change (Adjusted values for better effect) */
+  .neumorphic-interactive:hover:not(:disabled) {
+    /* Slightly tint towards accent on hover for light mode */
+    background-color: color-mix(
+      in srgb,
+      var(--bg-base) 95%,
+      var(--primary-accent) 5%
+    );
+    filter: brightness(99%); /* Minimal brightness change */
+  }
+
+  html.dark .neumorphic-interactive:hover:not(:disabled) {
+    /* Slightly tint towards accent on hover for dark mode */
+    background-color: color-mix(
+      in srgb,
+      var(--bg-base) 95%,
+      var(--primary-accent) 5%
+    );
+    filter: brightness(110%); /* Slightly brighter in dark mode */
+  }
+
+  /* Neumorphic Input Styling */
+  .neumorphic-input {
+    background: var(--bg-base);
+    border-radius: 12px; /* Slightly smaller radius for inputs */
+    box-shadow: var(--shadow-inset);
+    color: var(--text-primary);
+    caret-color: var(--primary-accent);
+    border: none; /* Remove default browser border */
+    @apply w-full px-4 py-2.5 text-base; /* Adjusted padding */
+    transition: box-shadow 0.3s ease, background 0.3s ease;
+  }
+
+  .neumorphic-input::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.8;
+  }
+
+  .neumorphic-input:focus {
+    outline: none;
+    /* Slightly stronger inset shadow on focus + subtle accent glow */
+    box-shadow: var(--shadow-inset),
+      0 0 0 2px color-mix(in srgb, var(--primary-accent) 30%, transparent);
+  }
+}
+
+/* Custom Scrollbar Styling (Uses updated variables automatically) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  /* Softer scrollbar color based on secondary text */
+  background-color: color-mix(in srgb, var(--text-secondary) 50%, transparent);
+  border-radius: 12px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  /* Uses primary accent on hover */
+  background-color: var(--primary-accent);
+}
+
+/* Firefox Scrollbar Styling (Uses updated variables automatically) */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  /* Softer scrollbar color based on secondary text */
+  scrollbar-color: color-mix(in srgb, var(--text-secondary) 50%, transparent)
+    transparent;
+}
