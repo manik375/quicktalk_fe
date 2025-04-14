@@ -66,6 +66,53 @@ const CallModal = () => {
     }
   }, [remoteStream, isInCall]);
 
+  // Handle autoplay restrictions
+  useEffect(() => {
+    // Function to ensure video elements can play
+    const ensureVideoPlayback = () => {
+      try {
+        if (userVideoRef.current && userVideoRef.current.paused && userVideoRef.current.srcObject) {
+          console.log('Attempting to play remote video again...');
+          userVideoRef.current.play()
+            .catch(err => console.warn('Still cannot play remote video:', err));
+        }
+        
+        if (myVideoRef.current && myVideoRef.current.paused && myVideoRef.current.srcObject) {
+          console.log('Attempting to play local video again...');
+          myVideoRef.current.play()
+            .catch(err => console.warn('Still cannot play local video:', err));
+        }
+      } catch (err) {
+        console.warn('Error ensuring video playback:', err);
+      }
+    };
+
+    // Try to ensure playback on mount and whenever stream changes
+    ensureVideoPlayback();
+    
+    // Also set up an interval to periodically check and try to play videos
+    // This handles cases where videos might be paused by browser policies
+    const playbackInterval = setInterval(ensureVideoPlayback, 1000);
+    
+    // Add user interaction listener to help with autoplay restrictions
+    const handleUserInteraction = () => {
+      ensureVideoPlayback();
+      // After first user interaction, we can reduce the frequency of checks
+      clearInterval(playbackInterval);
+      setInterval(ensureVideoPlayback, 3000);
+      
+      // Remove listener after first interaction
+      document.removeEventListener('click', handleUserInteraction);
+    };
+    
+    document.addEventListener('click', handleUserInteraction);
+    
+    return () => {
+      clearInterval(playbackInterval);
+      document.removeEventListener('click', handleUserInteraction);
+    };
+  }, [stream, remoteStream]);
+
   // Function to toggle fullscreen
   const toggleFullscreen = () => {
     if (!modalContainerRef.current) return;
