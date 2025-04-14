@@ -64,13 +64,24 @@ export class SimplifiedPeer {
       
       // Handle remote stream
       this.pc.ontrack = (event) => {
+        console.log('Track received:', event.track.kind, event.track.readyState);
         if (event.streams && event.streams[0]) {
-          this._emit('stream', event.streams[0]);
+          // Create a new MediaStream if we don't have one yet
+          let remoteStream = new MediaStream();
+          
+          // Add all tracks from the incoming stream to our remote stream
+          event.streams[0].getTracks().forEach(track => {
+            console.log(`Adding ${track.kind} track to remote stream`);
+            remoteStream.addTrack(track);
+          });
+          
+          this._emit('stream', remoteStream);
         }
       };
       
       // Handle connection state changes
       this.pc.oniceconnectionstatechange = () => {
+        console.log(`ICE connection state changed: ${this.pc.iceConnectionState}`);
         if (this.pc.iceConnectionState === 'connected' || 
             this.pc.iceConnectionState === 'completed') {
           if (!this.connected) {
@@ -85,6 +96,16 @@ export class SimplifiedPeer {
           this._onError('ICE connection failed or closed');
         }
       };
+      
+      // Also monitor connection state
+      this.pc.onconnectionstatechange = () => {
+        console.log(`Connection state changed: ${this.pc.connectionState}`);
+      };
+      
+      // Monitor signaling state
+      this.pc.onsignalingstatechange = () => {
+        console.log(`Signaling state changed: ${this.pc.signalingState}`);
+      };
     } catch (err) {
       this._onError('Failed to create RTCPeerConnection: ' + err.message);
     }
@@ -94,7 +115,13 @@ export class SimplifiedPeer {
   async _createOffer() {
     try {
       const offer = await this.pc.createOffer();
+      
+      // Log media sections in SDP
+      console.log('Local offer SDP sections:', this._countMediaSections(offer.sdp));
+      
       await this.pc.setLocalDescription(offer);
+      console.log('Created and set local offer');
+      
       this._emit('signal', {
         type: 'offer',
         sdp: this.pc.localDescription
@@ -110,21 +137,48 @@ export class SimplifiedPeer {
     
     try {
       if (data.type === 'offer') {
+        console.log('Received offer, setting remote description');
+        
+        // Log media sections in received SDP
+        if (data.sdp && data.sdp.sdp) {
+          console.log('Remote offer SDP sections:', this._countMediaSections(data.sdp.sdp));
+        }
+        
         await this.pc.setRemoteDescription(new RTCSessionDescription(data));
+        console.log('Remote description set successfully');
+        
         await this._applyPendingCandidates(); // Apply any stored candidates
+        
+        console.log('Creating answer');
         const answer = await this.pc.createAnswer();
+        
+        // Log media sections in answer SDP
+        console.log('Local answer SDP sections:', this._countMediaSections(answer.sdp));
+        
         await this.pc.setLocalDescription(answer);
+        console.log('Local description set successfully');
+        
         this._emit('signal', {
           type: 'answer',
           sdp: this.pc.localDescription
         });
       } else if (data.type === 'answer') {
+        console.log('Received answer, setting remote description');
+        
+        // Log media sections in received SDP
+        if (data.sdp && data.sdp.sdp) {
+          console.log('Remote answer SDP sections:', this._countMediaSections(data.sdp.sdp));
+        }
+        
         await this.pc.setRemoteDescription(new RTCSessionDescription(data));
+        console.log('Remote description set successfully');
+        
         await this._applyPendingCandidates(); // Apply any stored candidates
       } else if (data.type === 'candidate') {
         // Only add ICE candidates if remote description is set
         if (this.pc.remoteDescription && this.pc.remoteDescription.type) {
           try {
+            console.log('Adding ICE candidate');
             await this.pc.addIceCandidate(new RTCIceCandidate(data.candidate));
           } catch (err) {
             console.warn('Failed to add ICE candidate:', err);
@@ -197,6 +251,16 @@ export class SimplifiedPeer {
         }
       }
     }
+  }
+  
+  // Helper method to count media sections in SDP
+  _countMediaSections(sdp) {
+    if (!sdp) return { audio: 0, video: 0 };
+    
+    const audioSections = (sdp.match(/m=audio/g) || []).length;
+    const videoSections = (sdp.match(/m=video/g) || []).length;
+    
+    return { audio: audioSections, video: videoSections };
   }
 }
 
