@@ -50,11 +50,21 @@ export const CallProvider = ({ children }) => {
   const getUserMedia = async (constraints) => {
     setGetUserMediaError(null); // Reset error on new attempt
     try {
+      console.log('Requesting media with constraints:', constraints);
       const currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      console.log('Got media stream with tracks:', 
+        currentStream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`).join(', '));
+      
       setStream(currentStream);
+      
+      // Explicitly attach stream to video element if available
       if (myVideoRef.current) {
+        console.log('Attaching local stream to video element');
         myVideoRef.current.srcObject = currentStream;
+        myVideoRef.current.play().catch(err => console.warn('Could not auto-play local video:', err));
       }
+      
       return currentStream;
     } catch (error) {
       console.error("Error accessing media devices.", error);
@@ -259,9 +269,16 @@ export const CallProvider = ({ children }) => {
 
         peer.on('stream', (remoteStream) => {
             console.log('[Initiator] Received remote stream');
+            console.log('Remote stream tracks:', 
+              remoteStream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`).join(', '));
+            
             setRemoteStream(remoteStream);
+            
+            // Explicitly attach stream to video element if available
             if (userVideoRef.current) {
+                console.log('Attaching remote stream to video element');
                 userVideoRef.current.srcObject = remoteStream;
+                userVideoRef.current.play().catch(err => console.warn('Could not auto-play remote video:', err));
             }
         });
 
@@ -327,9 +344,16 @@ export const CallProvider = ({ children }) => {
 
         peer.on('stream', (remoteStream) => {
           console.log('[Receiver] Received remote stream');
+          console.log('Remote stream tracks:', 
+            remoteStream.getTracks().map(t => `${t.kind}:${t.label}:${t.readyState}`).join(', '));
+          
           setRemoteStream(remoteStream);
+          
+          // Explicitly attach stream to video element if available
           if (userVideoRef.current) {
+            console.log('Attaching remote stream to video element');
             userVideoRef.current.srcObject = remoteStream;
+            userVideoRef.current.play().catch(err => console.warn('Could not auto-play remote video:', err));
           }
         });
 
