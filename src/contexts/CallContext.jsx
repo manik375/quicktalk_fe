@@ -155,9 +155,37 @@ export const CallProvider = ({ children }) => {
   useEffect(() => {
     if (!socket || !currentUser?._id) return;
 
+    // Add tracking for last processed signal to prevent duplicates
+    const processedSignals = new Set();
+    const recentCallAttempts = {};
+    let isProcessingCall = false;
+
     // Listener for incoming calls
     const handleIncomingCall = ({ signal, from, name, callType: type }) => {
+      // Prevent duplicate call processing
+      const callId = `${from}-${Date.now()}`;
+      
+      // Check if we've recently processed a call from this user
+      const now = Date.now();
+      if (recentCallAttempts[from] && now - recentCallAttempts[from] < 2000) {
+        console.log(`Ignoring duplicate call from ${name} (${from}) - too frequent`);
+        return;
+      }
+      
+      // Record this attempt
+      recentCallAttempts[from] = now;
+      
       console.log(`Incoming ${type} call from ${name} (${from})`);
+      
+      // Only process if not already in a call
+      if (call || callAccepted || isProcessingCall) {
+        console.log(`Already in a call or processing one, ignoring call from ${name}`);
+        // Auto-reject if already in a call
+        socket.emit('call-ended', { to: from });
+        return;
+      }
+      
+      isProcessingCall = true;
       setCall({ isReceivingCall: true, from, name, signal, callType: type });
       setCallerName(name);
       setCallType(type);
@@ -165,12 +193,21 @@ export const CallProvider = ({ children }) => {
       setCallEnded(false);
       setGetUserMediaError(null); // Clear any previous errors
       playAudio(ringtoneAudioRef); // Play ringtone
+      isProcessingCall = false;
     };
 
     // Listener for when the other user accepts the call
     const handleCallAccepted = ({ signal, from }) => {
       console.log(`Call accepted by ${from}`);
+      
+      // Prevent processing if call already accepted or ended
+      if (callAccepted || callEnded) {
+        console.log('Ignoring duplicate call acceptance signal');
+        return;
+      }
+      
       setCallAccepted(true);
+      
       // Don't set callEnded here, timer effect handles start
       if (connectionRef.current) {
         connectionRef.current.signal(signal);
@@ -181,7 +218,26 @@ export const CallProvider = ({ children }) => {
 
     // Listener for receiving subsequent signals (ICE candidates etc.)
     const handleSignal = ({ signal, from }) => {
-        // console.log(`Received signal from ${from}`); // Can be noisy
+        // Deduplicate signals by creating a hash
+        if (!signal) return;
+        
+        const signalHash = JSON.stringify(signal);
+        if (processedSignals.has(signalHash)) {
+          // Skip duplicate signals
+          console.log('Ignoring duplicate signal');
+          return;
+        }
+        
+        // Add to processed set (with limit to prevent memory growth)
+        processedSignals.add(signalHash);
+        if (processedSignals.size > 100) {
+          // Clear oldest entries once we reach a reasonable limit
+          const entries = Array.from(processedSignals);
+          const toRemove = entries.slice(0, 50); // Remove oldest 50
+          toRemove.forEach(entry => processedSignals.delete(entry));
+        }
+        
+        // Process the signal
         if (connectionRef.current && !connectionRef.current.destroyed) {
             connectionRef.current.signal(signal);
         } else {
@@ -247,8 +303,26 @@ export const CallProvider = ({ children }) => {
           config: { 
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:global.stun.twilio.com:3478' }
-            ] 
+              { urls: 'stun:global.stun.twilio.com:3478' },
+              // Add free TURN servers - these are essential for NAT traversal
+              // especially important when using Render's free tier hosting
+              { 
+                urls: 'turn:openrelay.metered.ca:80',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+              },
+              {
+                urls: 'turn:openrelay.metered.ca:443',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+              },
+              {
+                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+              }
+            ],
+            iceCandidatePoolSize: 10 // Increase candidate pool size
           }
         };
         
@@ -328,8 +402,26 @@ export const CallProvider = ({ children }) => {
           config: { 
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:global.stun.twilio.com:3478' }
-            ] 
+              { urls: 'stun:global.stun.twilio.com:3478' },
+              // Add free TURN servers - these are essential for NAT traversal
+              // especially important when using Render's free tier hosting
+              { 
+                urls: 'turn:openrelay.metered.ca:80',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+              },
+              {
+                urls: 'turn:openrelay.metered.ca:443',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+              },
+              {
+                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+              }
+            ],
+            iceCandidatePoolSize: 10 // Increase candidate pool size
           }
         };
         
