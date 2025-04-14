@@ -23,6 +23,7 @@ export class SimplifiedPeer {
     this.destroyed = false;
     this.connected = false;
     this._events = {};
+    this._pendingCandidates = []; // Store candidates received before remote description
     this._iceServers = (options.config && options.config.iceServers) || [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:global.stun.twilio.com:3478' }
@@ -110,6 +111,7 @@ export class SimplifiedPeer {
     try {
       if (data.type === 'offer') {
         await this.pc.setRemoteDescription(new RTCSessionDescription(data));
+        await this._applyPendingCandidates(); // Apply any stored candidates
         const answer = await this.pc.createAnswer();
         await this.pc.setLocalDescription(answer);
         this._emit('signal', {
@@ -118,8 +120,21 @@ export class SimplifiedPeer {
         });
       } else if (data.type === 'answer') {
         await this.pc.setRemoteDescription(new RTCSessionDescription(data));
+        await this._applyPendingCandidates(); // Apply any stored candidates
       } else if (data.type === 'candidate') {
-        await this.pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        // Only add ICE candidates if remote description is set
+        if (this.pc.remoteDescription && this.pc.remoteDescription.type) {
+          try {
+            await this.pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+          } catch (err) {
+            console.warn('Failed to add ICE candidate:', err);
+          }
+        } else {
+          // Store ICE candidates if remote description not yet set
+          console.log('Received ICE candidate before remote description, queueing...');
+          if (!this._pendingCandidates) this._pendingCandidates = [];
+          this._pendingCandidates.push(data.candidate);
+        }
       }
     } catch (err) {
       this._onError('Error handling signal: ' + err.message);
@@ -165,6 +180,23 @@ export class SimplifiedPeer {
     
     // Clear all event listeners
     this._events = {};
+  }
+  
+  // Add a method to apply pending candidates after remote description is set
+  async _applyPendingCandidates() {
+    if (this._pendingCandidates && this._pendingCandidates.length > 0) {
+      console.log(`Applying ${this._pendingCandidates.length} pending ICE candidates`);
+      const candidates = [...this._pendingCandidates];
+      this._pendingCandidates = [];
+      
+      for (const candidate of candidates) {
+        try {
+          await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+          console.warn('Failed to add stored ICE candidate:', err);
+        }
+      }
+    }
   }
 }
 
