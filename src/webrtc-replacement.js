@@ -41,25 +41,57 @@ export class SimplifiedPeer {
   // Initialize the RTCPeerConnection
   _init() {
     try {
-      this.pc = new RTCPeerConnection({
-        iceServers: this._iceServers
-      });
+      // Create a configuration that prioritizes TURN relay for faster connections
+      const configuration = {
+        iceServers: this._iceServers,
+        iceTransportPolicy: 'all', // Try all connection methods
+        iceCandidatePoolSize: 10, // Increase candidate gathering
+        bundlePolicy: 'max-bundle', // Bundle media to reduce connection setup time
+        rtcpMuxPolicy: 'require', // Multiplex RTCP to reduce ports needed
+        sdpSemantics: 'unified-plan' // Use modern SDP format
+      };
+      
+      console.log('Initializing RTCPeerConnection with config:', JSON.stringify(configuration));
+      
+      this.pc = new RTCPeerConnection(configuration);
+      
+      // Set bandwidth limits to help on lower bandwidth connections
+      this._setMediaBitrates = (sdp) => {
+        // Set reasonable bitrates for audio and video
+        // These values are a good compromise for most connections
+        return this._setBitrate(
+          this._setBitrate(sdp, 'video', 1000), // ~1mbps for video
+          'audio', 64 // 64kbps for audio
+        );
+      };
       
       // Add local stream if provided
       if (this.stream) {
+        console.log('Adding local stream tracks to peer connection');
         this.stream.getTracks().forEach(track => {
-          this.pc.addTrack(track, this.stream);
+          const sender = this.pc.addTrack(track, this.stream);
+          console.log(`Added ${track.kind} track to peer connection`);
         });
       }
       
       // Handle ICE candidates
       this.pc.onicecandidate = (event) => {
         if (event.candidate) {
+          // Log candidate for debugging
+          const candidateString = event.candidate.candidate || '';
+          const candidateType = candidateString.split(' ')[7] || 'unknown';
+          console.log(`ICE candidate generated: ${candidateType}`);
+          
           this._emit('signal', {
             type: 'candidate',
             candidate: event.candidate
           });
         }
+      };
+      
+      // Handle ICE gathering state changes
+      this.pc.onicegatheringstatechange = () => {
+        console.log(`ICE gathering state: ${this.pc.iceGatheringState}`);
       };
       
       // Handle remote stream
@@ -82,6 +114,7 @@ export class SimplifiedPeer {
       // Handle connection state changes
       this.pc.oniceconnectionstatechange = () => {
         console.log(`ICE connection state changed: ${this.pc.iceConnectionState}`);
+        
         if (this.pc.iceConnectionState === 'connected' || 
             this.pc.iceConnectionState === 'completed') {
           if (!this.connected) {
@@ -90,16 +123,44 @@ export class SimplifiedPeer {
           }
         }
         
-        if (this.pc.iceConnectionState === 'failed' ||
-            this.pc.iceConnectionState === 'disconnected' ||
-            this.pc.iceConnectionState === 'closed') {
-          this._onError('ICE connection failed or closed');
+        if (this.pc.iceConnectionState === 'failed') {
+          console.warn('ICE connection failed, attempting recovery...');
+          
+          // Try to recover by restarting ICE
+          if (this.initiator) {
+            console.log('Initiator trying to restart ICE...');
+            this._createOffer({ iceRestart: true })
+              .catch(err => {
+                console.error('Failed to restart ICE:', err);
+                this._onError('ICE restart failed: ' + err.message);
+              });
+          }
+        }
+        
+        if (this.pc.iceConnectionState === 'disconnected') {
+          console.warn('ICE connection disconnected, waiting for recovery');
+          
+          // Set up a timeout to declare the connection failed if it doesn't recover
+          setTimeout(() => {
+            if (this.pc && this.pc.iceConnectionState === 'disconnected') {
+              console.error('ICE connection still disconnected after timeout');
+              this._onError('Connection timed out');
+            }
+          }, 10000); // 10 second timeout
+        }
+        
+        if (this.pc.iceConnectionState === 'closed') {
+          this._onError('ICE connection closed');
         }
       };
       
       // Also monitor connection state
       this.pc.onconnectionstatechange = () => {
         console.log(`Connection state changed: ${this.pc.connectionState}`);
+        
+        if (this.pc.connectionState === 'failed') {
+          this._onError('Connection failed');
+        }
       };
       
       // Monitor signaling state
@@ -111,16 +172,74 @@ export class SimplifiedPeer {
     }
   }
   
+  // Set bitrate for media in SDP
+  _setBitrate(sdp, media, bitrate) {
+    if (!sdp) return sdp;
+    
+    const lines = sdp.split('\n');
+    let line = -1;
+    
+    // Find the media section
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith('m=' + media)) {
+        line = i;
+        break;
+      }
+    }
+    
+    if (line === -1) return sdp;
+    
+    // Find the next m= line (to mark the end of this media section)
+    let nextMediaLine = -1;
+    for (let i = line + 1; i < lines.length; i++) {
+      if (lines[i].startsWith('m=')) {
+        nextMediaLine = i;
+        break;
+      }
+    }
+    
+    // If we didn't find another m= line, we're modifying the last media section
+    if (nextMediaLine === -1) nextMediaLine = lines.length;
+    
+    // Modify the current media section
+    let mediaSection = lines.slice(line, nextMediaLine);
+    
+    // Check if there's already a b=AS line
+    let found = false;
+    for (let i = 0; i < mediaSection.length; i++) {
+      if (mediaSection[i].startsWith('b=AS:')) {
+        mediaSection[i] = 'b=AS:' + bitrate;
+        found = true;
+        break;
+      }
+    }
+    
+    // If no b=AS line, add one
+    if (!found) {
+      mediaSection.splice(1, 0, 'b=AS:' + bitrate);
+    }
+    
+    // Rebuild the SDP
+    return [...lines.slice(0, line), ...mediaSection, ...lines.slice(nextMediaLine)].join('\n');
+  }
+  
   // Create and send an offer if we're the initiator
-  async _createOffer() {
+  async _createOffer(options = {}) {
     try {
-      const offer = await this.pc.createOffer();
+      const offer = await this.pc.createOffer(options);
       
       // Log media sections in SDP
       console.log('Local offer SDP sections:', this._countMediaSections(offer.sdp));
       
-      await this.pc.setLocalDescription(offer);
-      console.log('Created and set local offer');
+      // Apply bandwidth limits
+      const modifiedSdp = this._setMediaBitrates(offer.sdp);
+      const modifiedOffer = new RTCSessionDescription({
+        type: 'offer',
+        sdp: modifiedSdp
+      });
+      
+      await this.pc.setLocalDescription(modifiedOffer);
+      console.log('Created and set local offer with bandwidth limits');
       
       this._emit('signal', {
         type: 'offer',
@@ -155,8 +274,15 @@ export class SimplifiedPeer {
         // Log media sections in answer SDP
         console.log('Local answer SDP sections:', this._countMediaSections(answer.sdp));
         
-        await this.pc.setLocalDescription(answer);
-        console.log('Local description set successfully');
+        // Apply bandwidth limits
+        const modifiedSdp = this._setMediaBitrates(answer.sdp);
+        const modifiedAnswer = new RTCSessionDescription({
+          type: 'answer',
+          sdp: modifiedSdp
+        });
+        
+        await this.pc.setLocalDescription(modifiedAnswer);
+        console.log('Local description set successfully with bandwidth limits');
         
         this._emit('signal', {
           type: 'answer',
